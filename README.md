@@ -2,16 +2,29 @@
 
 <docgen-index>
 
+* [`scan()`](#scan)
 * [`getIP()`](#getip)
 * [`getSSID()`](#getssid)
 * [`connect(...)`](#connect)
 * [`connectPrefix(...)`](#connectprefix)
 * [`disconnect()`](#disconnect)
+* [Interfaces](#interfaces)
 
 </docgen-index>
 
 <docgen-api>
 <!--Update the source file JSDoc comments and rerun docgen to update the docs below-->
+
+### scan()
+
+```typescript
+scan() => Promise<{ scan: IWifiNetwork[]; }>
+```
+
+**Returns:** <code>Promise&lt;{ scan: IWifiNetwork[]; }&gt;</code>
+
+--------------------
+
 
 ### getIP()
 
@@ -72,5 +85,23 @@ disconnect() => Promise<void>
 ```
 
 --------------------
+
+
+### Interfaces
+
+
+#### IWifiNetwork
+
+| Prop               | Type                |
+| ------------------ | ------------------- |
+| **`level`**        | <code>number</code> |
+| **`SSID`**         | <code>string</code> |
+| **`BSSID`**        | <code>string</code> |
+| **`frequency`**    | <code>number</code> |
+| **`capabilities`** | <code>string</code> |
+| **`timestamp`**    | <code>number</code> |
+| **`channelWidth`** | <code>number</code> |
+| **`centerFreq0`**  | <code>number</code> |
+| **`centerFreq1`**  | <code>number</code> |
 
 </docgen-api>

@@ -2,7 +2,7 @@ import { execFile } from 'child_process';
 import type { NetworkInterfaceInfo } from 'os';
 import { networkInterfaces } from 'os';
 
-import type { WifiPlugin } from '../../src/definitions';
+import type { IWifiNetwork, WifiPlugin } from '../../src/definitions';
 
 const nodeWifi = require('node-wifi');
 
@@ -24,6 +24,11 @@ export class Wifi implements WifiPlugin {
     nodeWifi.init({
       iface: null, // network interface, choose a random wifi interface if set to null
     });
+  }
+
+  scan(): Promise<{ scan: IWifiNetwork[]; }> {
+    // TODO review nodeWifi.scan() 
+      throw new Error("Unsupported")
   }
 
   async getIP(): Promise<{ ip: string }> {
