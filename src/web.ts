@@ -1,7 +1,12 @@
 import { WebPlugin } from '@capacitor/core';
-import { WifiPlugin } from './definitions';
+
+import type { IWifiNetwork, WifiPlugin } from './definitions';
 
 export class WifiWeb extends WebPlugin implements WifiPlugin {
+
+  async scan(): Promise<{ scan: IWifiNetwork[] }> {
+    return { scan: [] };
+  }
 
   async getIP(): Promise<{ ip: string | null }> {
     return { ip: null };

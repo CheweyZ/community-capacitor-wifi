@@ -1,4 +1,17 @@
+export interface IWifiNetwork {
+  level: number;
+  SSID: string;
+  BSSID: string;
+  frequency: number;
+  capabilities: string;
+  timestamp: number;
+  channelWidth?: number;
+  centerFreq0?: number;
+  centerFreq1?: number;
+}
+
 export interface WifiPlugin {
+  scan(): Promise<{ scan: IWifiNetwork[] }>;
   getIP(): Promise<{ ip: string | null }>;
   getSSID(): Promise<{ ssid: string | null }>;
   connect(options: {

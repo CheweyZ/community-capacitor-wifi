@@ -77,7 +77,15 @@ public class Wifi extends Plugin {
         } else {
             this.wifiService.connectPrefix(call);
         }
+    }
 
+    @PluginMethod()
+    public void scan(PluginCall call) {
+        if (API_VERSION >= 23 && getPermissionState("fineLocation") != PermissionState.GRANTED) {
+            requestPermissionForAlias("fineLocation", call, "accessFineLocation");
+        } else {
+            this.wifiService.scanNetwork(call);
+        }
     }
 
     @PluginMethod()
@@ -96,6 +104,8 @@ public class Wifi extends Plugin {
                 this.wifiService.connect(call);
             } else if (call.getMethodName().equals("connectPrefix")) {
                 this.wifiService.connectPrefix(call);
+            }else if (call.getMethodName().equals("scan")) {
+                this.wifiService.scanNetwork(call);
             }
         } else {
             call.reject("User denied permission");

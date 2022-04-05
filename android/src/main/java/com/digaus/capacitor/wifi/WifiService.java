@@ -2,9 +2,12 @@ package com.digaus.capacitor.wifi;
 
 
 import android.annotation.SuppressLint;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.net.ConnectivityManager;
+import android.net.wifi.ScanResult;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
@@ -25,6 +28,10 @@ import com.getcapacitor.Bridge;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.PluginCall;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.List;
 import java.util.Locale;
 
@@ -34,6 +41,7 @@ public class WifiService {
     private static final int API_VERSION = Build.VERSION.SDK_INT;
 
     private PluginCall savedCall;
+    private PluginCall savedScanCall;
     private ConnectivityManager.NetworkCallback networkCallback;
 
     WifiManager wifiManager;
@@ -183,8 +191,139 @@ public class WifiService {
         } else if (API_VERSION >= 21) {
             ConnectivityManager.setProcessDefaultNetwork(null);
         }
-
     }
+
+    /**
+     * Scans networks and sends the list back on the success callback
+     */
+    public boolean scanNetwork(PluginCall call) {
+        this.savedScanCall = call;
+        final ScanSyncContext syncContext = new ScanSyncContext();
+
+        final BroadcastReceiver receiver = new BroadcastReceiver() {
+            public void onReceive(Context context, Intent intent) {
+                PluginCall call = WifiService.this.savedScanCall;
+                synchronized (syncContext) {
+                    if (syncContext.finished) {
+                        return;
+                    }
+                    syncContext.finished = true;
+                    context.unregisterReceiver(this);
+                }
+                getScanResults(call);
+            }
+        };
+
+        final Context context = this.context;
+
+        this.bridge.execute(new Runnable() {
+
+            public void run() {
+                PluginCall call = WifiService.this.savedScanCall;
+
+                final int TEN_SECONDS = 10000;
+
+                try {
+                    Thread.sleep(TEN_SECONDS);
+                } catch (InterruptedException e) {
+                    Log.e(TAG, "Received InterruptedException e, " + e);
+                    // keep going into error
+                }
+
+                synchronized (syncContext) {
+                    if (syncContext.finished) {
+                        return;
+                    }
+                    syncContext.finished = true;
+                    context.unregisterReceiver(receiver);
+                }
+
+                Log.v(TAG, "In timeout, error");
+                call.reject("TIMEOUT_WAITING_FOR_SCAN");
+            }
+
+        });
+
+        Log.v(TAG, "Registering broadcastReceiver");
+        context.registerReceiver(
+                receiver,
+                new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION)
+        );
+
+        if (!wifiManager.startScan()) {
+            Log.v(TAG, "Scan failed");
+            call.reject("SCAN_FAILED");
+            return false;
+        }
+
+        Log.v(TAG, "Starting wifi scan");
+        return true;
+    }
+
+    /**
+     * Class to store finished boolean in
+     */
+    private class ScanSyncContext {
+
+        public boolean finished = false;
+    }
+
+    /**
+     * This method uses the callbackContext.success method to send a JSONArray of the scanned
+     * networks.
+     */
+    private boolean getScanResults(PluginCall call) {
+        List<ScanResult> scanResults = wifiManager.getScanResults();
+
+        JSONArray returnList = new JSONArray();
+
+
+        for (ScanResult scan : scanResults) {
+            /*
+             * @todo - breaking change, remove this notice when tidying new release and explain changes, e.g.:
+             *   0.y.z includes a breaking change to WifiWizard2.getScanResults().
+             *   Earlier versions set scans' level attributes to a number derived from wifiManager.calculateSignalLevel.
+             *   This update returns scans' raw RSSI value as the level, per Android spec / APIs.
+             *   If your application depends on the previous behaviour, we have added an options object that will modify behaviour:
+             *   - if `(n == true || n < 2)`, `*.getScanResults({numLevels: n})` will return data as before, split in 5 levels;
+             *   - if `(n > 1)`, `*.getScanResults({numLevels: n})` will calculate the signal level, split in n levels;
+             *   - if `(n == false)`, `*.getScanResults({numLevels: n})` will use the raw signal level;
+             */
+
+            int level = scan.level;
+
+            JSONObject lvl = new JSONObject();
+            try {
+                lvl.put("level", level);
+                lvl.put("SSID", scan.SSID);
+                lvl.put("BSSID", scan.BSSID);
+                lvl.put("frequency", scan.frequency);
+                lvl.put("capabilities", scan.capabilities);
+                lvl.put("timestamp", scan.timestamp);
+
+                if (API_VERSION >= 23) { // Marshmallow
+                    lvl.put("channelWidth", scan.channelWidth);
+                    lvl.put("centerFreq0", scan.centerFreq0);
+                    lvl.put("centerFreq1", scan.centerFreq1);
+                } else {
+                    lvl.put("channelWidth", JSONObject.NULL);
+                    lvl.put("centerFreq0", JSONObject.NULL);
+                    lvl.put("centerFreq1", JSONObject.NULL);
+                }
+
+                returnList.put(lvl);
+            } catch (JSONException e) {
+                e.printStackTrace();
+                call.error(e.toString());
+                return false;
+            }
+        }
+        JSObject result = new JSObject();
+        result.put("scan", returnList);
+        call.success(result);
+        return true;
+    }
+
     private int addNetwork(PluginCall call) {
 
         String ssid = call.getString("ssid");
